@@ -1,0 +1,16 @@
+name: checkout
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: checkout
+      POSTGRES_PASSWORD: checkout
+      POSTGRES_DB: checkout
+    ports:
+      - "5440:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+volumes:
+  db-data:
