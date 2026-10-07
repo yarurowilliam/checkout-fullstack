@@ -7,6 +7,8 @@ import { fetchProducts } from '../store/productsSlice';
 
 export const POLL_MS = 3000;
 export const REDIRECT_SECONDS = 10;
+/** Consultas a una transacción PENDING sin id de pasarela antes de darla por no enviada (~24 s). */
+export const MAX_ORPHAN_CHECKS = 8;
 
 const COPY = {
   APPROVED: { icon: '✓', tone: 'success', title: '¡Pago aprobado!', text: 'Tu pedido fue asignado para entrega.' },
@@ -21,7 +23,15 @@ export function ResultPage() {
   const dispatch = useAppDispatch();
   const { transaction: tx, busy, error } = useAppSelector((s) => s.checkout);
   const [seconds, setSeconds] = useState(REDIRECT_SECONDS);
-  const processing = busy || (tx?.status === 'PENDING' && Boolean(tx.gatewayTransactionId));
+  const [tick, setTick] = useState(0);
+  const [orphanChecks, setOrphanChecks] = useState(0);
+
+  const pending = tx?.status === 'PENDING';
+  const sentToGateway = Boolean(tx?.gatewayTransactionId);
+  // Tras un refresh en pleno pago el backend puede seguir cobrando: se espera antes de ofrecer reintentar.
+  // Si el pago falló en esta misma sesión (hay error), no hay nada que esperar.
+  const awaitingServer = pending && !sentToGateway && !error && orphanChecks < MAX_ORPHAN_CHECKS;
+  const processing = busy || (pending && sentToGateway) || awaitingServer;
 
   const backToStore = () => {
     dispatch(finishCheckout());
@@ -30,12 +40,17 @@ export function ResultPage() {
 
   // Recupera el estado tras un refresh o mientras la pasarela lo resuelve.
   useEffect(() => {
-    if (!tx || busy || tx.status !== 'PENDING') return;
-    dispatch(refreshTransaction(tx.id));
-    if (!tx.gatewayTransactionId) return;
-    const timer = setInterval(() => dispatch(refreshTransaction(tx.id)), POLL_MS);
-    return () => clearInterval(timer);
-  }, [dispatch, tx?.id, tx?.status, tx?.gatewayTransactionId, busy]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!tx || busy || !(pending && (sentToGateway || awaitingServer))) return;
+    const timer = setTimeout(
+      async () => {
+        await dispatch(refreshTransaction(tx.id));
+        if (!sentToGateway) setOrphanChecks((n) => n + 1);
+        setTick((n) => n + 1);
+      },
+      tick === 0 ? 0 : POLL_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [dispatch, tx?.id, busy, pending, sentToGateway, awaitingServer, tick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Redirige a la tienda unos segundos después de un estado final.
   const final = isFinal(tx);
