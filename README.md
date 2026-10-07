@@ -137,6 +137,8 @@ Documentación interactiva en **`/api/docs`** (Swagger).
 | POST | `/api/transactions` | Crea (o actualiza) el cliente, la transacción `PENDING` y la entrega |
 | POST | `/api/transactions/:id/payment` | Cobra con el token de la tarjeta y aplica el resultado |
 | GET | `/api/transactions/:id` | Estado de la transacción; si sigue `PENDING` lo sincroniza con la pasarela |
+| GET | `/api/customers/:id` | Datos del cliente (nombre y email; el teléfono no se expone) |
+| GET | `/api/deliveries/:id` | Entrega: dirección, transacción asociada y estado (`PENDING`, `ASSIGNED`, `CANCELLED`, `OUT_OF_STOCK`) |
 
 <details>
 <summary>Ejemplo: crear y pagar una transacción</summary>
@@ -204,7 +206,7 @@ Alineado con OWASP Top 10:
 
 | Riesgo | Medida |
 |---|---|
-| Exposición de datos sensibles | La tarjeta se tokeniza en el navegador con la llave pública; el backend nunca recibe número ni CVC. Solo se guardan marca y últimos 4. La respuesta no expone teléfono ni id interno del cliente. |
+| Exposición de datos sensibles | La tarjeta se tokeniza en el navegador con la llave pública; el backend nunca recibe número ni CVC. Solo se guardan marca y últimos 4. Las respuestas no exponen el teléfono del cliente. |
 | Secretos | Llaves e integridad en SSM Parameter Store (SecureString). Nada sensible en el repositorio. |
 | Inyección | TypeORM con consultas parametrizadas; validación estricta de DTOs y whitelist de campos. |
 | Abuso / fuerza bruta | Rate limiting: 120 req/min por IP y 10 pagos/min. Cuerpo JSON limitado a 10 KB. |
@@ -219,7 +221,15 @@ cd backend  && npm run test:cov
 cd frontend && npm run test:cov
 ```
 
-**Backend** — 56 tests. El repositorio de transacciones se prueba contra PostgreSQL en memoria (pg-mem) para validar el SQL real de la finalización atómica.
+**Backend** — 82 tests:
+
+- **Unitarios** de dominio, casos de uso, controladores, DTOs y adaptadores. Los repositorios se prueban contra PostgreSQL en memoria (pg-mem) para validar el SQL real de la finalización atómica.
+- **E2E de la API** (`npm run test:e2e`): levantan la aplicación completa (mismos módulos, pipes y cabeceras que producción) sobre PostgreSQL en memoria y con la pasarela simulada, y prueban por HTTP con supertest:
+  - compra aprobada de punta a punta (stock, entrega, cliente);
+  - pago rechazado y pasarela caída;
+  - doble pago (`409`), stock insuficiente (`409`), producto inexistente (`404`);
+  - validaciones (`400`) y campos no declarados;
+  - cabeceras de seguridad, límite de 10 KB (`413`), rate limit (`429`) y Swagger.
 
 | Statements | Branches | Functions | Lines |
 |---|---|---|---|
