@@ -1,42 +1,96 @@
 # Checkout de producto con tarjeta de crédito
 
-SPA mobile-first para comprar un producto con tarjeta de crédito a través de una pasarela de pagos (sandbox), con backend propio que gestiona stock, transacciones, clientes y entregas.
+SPA mobile-first para comprar un producto y pagarlo con tarjeta de crédito a través de una pasarela de pagos (ambiente sandbox), con un backend propio que gestiona **stock, transacciones, clientes y entregas**.
 
-## Flujo
+| | |
+|---|---|
+| **App desplegada** | https://d3uzg2xis4rjhn.cloudfront.net |
+| **Swagger (API pública)** | https://d3uzg2xis4rjhn.cloudfront.net/api/docs |
+| **Repositorio** | https://github.com/yarurowilliam/checkout-fullstack |
 
-1. Producto (stock, descripción y precio)
-2. Datos de tarjeta y entrega
-3. Resumen de pago
-4. Estado final de la transacción
-5. Producto con stock actualizado
+## Contenido
 
-## Estructura
+- [Flujo de negocio](#flujo-de-negocio)
+- [Stack](#stack)
+- [Arquitectura](#arquitectura)
+- [Modelo de datos](#modelo-de-datos)
+- [API](#api)
+- [Flujo de pago](#flujo-de-pago)
+- [Resiliencia](#resiliencia)
+- [Seguridad](#seguridad)
+- [Pruebas y cobertura](#pruebas-y-cobertura)
+- [Ejecutar en local](#ejecutar-en-local)
+- [Despliegue en AWS](#despliegue-en-aws)
+- [Decisiones y limitaciones conocidas](#decisiones-y-limitaciones-conocidas)
+
+## Flujo de negocio
 
 ```
-backend/   API NestJS (arquitectura hexagonal + ROP)
-frontend/  SPA (en construcción)
+1. Producto ──► 2. Tarjeta y entrega ──► 3. Resumen ──► 4. Estado final ──► 5. Producto (stock actualizado)
 ```
 
-## Backend
+1. **Producto**: catálogo con descripción, precio y unidades disponibles. Se elige la cantidad y se pulsa *Pagar con tarjeta de crédito*.
+2. **Tarjeta y entrega** (modal): número con detección de VISA/MasterCard, titular, vencimiento, CVC, cuotas y datos de entrega. Todo se valida en el cliente y en el servidor.
+3. **Resumen** (patrón [backdrop de Material](https://m2.material.io/components/backdrop)): valor del producto, tarifa base, tarifa de envío y total, más la aceptación de términos de la pasarela.
+4. **Estado final**: aprobado, rechazado o error, con referencia, tarjeta enmascarada y dirección de entrega.
+5. **Regreso a la tienda** (automático a los 10 s o con el botón) con el stock actualizado.
 
-**Stack:** NestJS 11, TypeScript, PostgreSQL 16, TypeORM, Jest.
+**Tarjetas de prueba (sandbox):** `4242 4242 4242 4242` → aprobada · `4111 1111 1111 1111` → rechazada. Cualquier fecha futura y CVC de 3 dígitos.
 
-### Arquitectura (hexagonal: puertos y adaptadores)
+## Stack
+
+| Capa | Tecnología |
+|---|---|
+| Frontend | React 19, Redux Toolkit, Vite, CSS propio (flexbox + grid), Jest + Testing Library |
+| Backend | NestJS 11, TypeScript, TypeORM, class-validator, Swagger, Jest |
+| Base de datos | PostgreSQL 16 |
+| Infraestructura | AWS CDK: CloudFront, S3, EC2, SSM Parameter Store; Docker Compose |
+
+## Arquitectura
+
+### Backend: hexagonal (puertos y adaptadores) + Railway Oriented Programming
 
 ```
-src/
-  shared/result.ts         Tipo Result<T> para Railway Oriented Programming
-  domain/                  Modelos y puertos (interfaces), sin dependencias de frameworks
-  application/             Casos de uso: orquestan puertos y devuelven Result
+backend/src/
+  shared/result.ts       Result<T> y Flow: encadenamiento ROP (andThen / map)
+  domain/                Modelos, reglas (cálculo de montos) y puertos (interfaces)
+    ports/               ProductRepository, TransactionRepository, PaymentGateway
+  application/           Casos de uso: productos y transacciones
   infrastructure/
-    http/                  Controladores y DTOs (adaptadores de entrada), mapeo Result → HTTP
-    persistence/           Entidades TypeORM, repositorios (adaptadores de salida) y seed
-    gateway/               Adaptador de la pasarela de pagos (firma, reintentos)
+    http/                Controladores y DTOs (adaptadores de entrada), Result → HTTP
+    persistence/         Entidades y repositorios TypeORM, seed (adaptadores de salida)
+    gateway/             Adaptador de la pasarela: firma de integridad y reintentos
 ```
 
-Los controladores solo traducen HTTP ↔ casos de uso. Los casos de uso no lanzan excepciones: devuelven `Ok` o `Err` y el controlador convierte el error en el código HTTP correspondiente.
+- El **dominio no depende de NestJS ni de TypeORM**; los casos de uso solo conocen los puertos.
+- Los casos de uso **no lanzan excepciones**: cada paso devuelve `Ok` o `Err` y la cadena se corta en el primer error.
 
-### Modelo de datos
+```ts
+pay(id, input) {
+  return Flow.from(this.findTransaction(id))
+    .andThen((tx) => ensure(tx, tx.status === 'PENDING' && !tx.gatewayTransactionId, 'CONFLICT', 'La transacción ya fue procesada'))
+    .andThen((tx) => this.checkStock(tx))
+    .andThen((tx) => this.charge(tx, input))
+    .run();
+}
+```
+
+- El controlador es el final del riel: `unwrap(result)` convierte cada código de error en su estado HTTP (`NOT_FOUND`→404, `VALIDATION`→400, `OUT_OF_STOCK`/`CONFLICT`→409, `GATEWAY`→502).
+
+### Frontend: Flux con Redux Toolkit
+
+```
+frontend/src/
+  domain/        Reglas puras: tarjeta (Luhn, marca, formato), validaciones, dinero
+  api/           Adaptadores HTTP: backend y pasarela (tokenización, aceptación)
+  store/         Slices de productos y checkout, thunks y persistencia
+  components/    ProductPage, PaymentModal, SummaryBackdrop, ResultPage
+```
+
+- Un único flujo de datos: los componentes despachan acciones → los thunks llaman a la API → los reducers actualizan el estado → la vista se re-renderiza.
+- Los thunks reciben los adaptadores HTTP como dependencia (`extraArgument`), lo que permite probarlos sin red.
+
+## Modelo de datos
 
 ```
 products                     customers
@@ -54,7 +108,7 @@ transactions ──────────────────────�
 ├ product_id (FK), customer_id (FK)
 ├ quantity
 ├ amount_in_cents, base_fee_in_cents, delivery_fee_in_cents, total_in_cents
-├ status (PENDING | APPROVED | DECLINED | ERROR)
+├ status (PENDING | APPROVED | DECLINED | ERROR | VOIDED)
 ├ gateway_transaction_id
 ├ card_brand, card_last_four   (nunca se guarda el número ni el CVV)
 └ created_at, updated_at
@@ -68,66 +122,169 @@ deliveries
 └ created_at
 ```
 
-Los montos se manejan en centavos (enteros) para evitar errores de redondeo.
+- Montos en **centavos enteros** para evitar errores de redondeo.
+- La base se carga con productos de ejemplo al iniciar si la tabla está vacía (no hay endpoint para crear productos).
 
-### API
+## API
+
+Documentación interactiva en **`/api/docs`** (Swagger).
 
 | Método | Ruta | Descripción |
 |---|---|---|
 | GET | `/api/products` | Lista productos con stock |
 | GET | `/api/products/:id` | Detalle de un producto |
 | GET | `/api/checkout/fees` | Tarifa base y tarifa de envío |
-| POST | `/api/transactions` | Crea cliente, transacción PENDING y entrega |
+| POST | `/api/transactions` | Crea (o actualiza) el cliente, la transacción `PENDING` y la entrega |
 | POST | `/api/transactions/:id/payment` | Cobra con el token de la tarjeta y aplica el resultado |
-| GET | `/api/transactions/:id` | Estado de la transacción (sincroniza con la pasarela si sigue PENDING) |
+| GET | `/api/transactions/:id` | Estado de la transacción; si sigue `PENDING` lo sincroniza con la pasarela |
 
-Documentación Swagger en `/docs`.
+<details>
+<summary>Ejemplo: crear y pagar una transacción</summary>
 
-### Flujo de pago
+```http
+POST /api/transactions
+{
+  "productId": "4d6f…",
+  "quantity": 1,
+  "customer": { "email": "ana@test.com", "fullName": "Ana Pérez", "phone": "3001234567" },
+  "delivery": { "address": "Calle 10 # 20-30", "city": "Bogotá", "region": "Cundinamarca", "postalCode": "110111" }
+}
+→ 201 { "id": "…", "reference": "TX-…", "status": "PENDING", "totalInCents": 19990000, … }
 
-1. El front tokeniza la tarjeta directamente contra la pasarela con la llave pública: **el número y el CVV nunca llegan al backend**.
-2. `POST /api/transactions` valida el stock y crea la transacción `PENDING` con su número de referencia.
-3. `POST /api/transactions/:id/payment` vuelve a validar el stock, firma la petición (SHA256 de referencia + monto + moneda + secreto de integridad) y crea el pago en la pasarela. Luego consulta el estado hasta obtener uno final.
-4. Con el resultado, en una sola transacción de base de datos:
-   - `APPROVED` → descuenta el stock y asigna la entrega.
-   - `DECLINED` / `ERROR` → cancela la entrega.
-   La finalización es idempotente: solo se aplica una vez desde `PENDING`, aunque lleguen consultas concurrentes.
-5. Si el cliente refresca, `GET /api/transactions/:id` recupera el estado y, si sigue `PENDING`, lo sincroniza con la pasarela.
-
-La marca y los últimos 4 dígitos de la tarjeta se toman de la respuesta de la pasarela, no del cliente. Las llamadas a la pasarela se reintentan ante errores 5xx o de red (el sandbox falla de forma intermitente).
+POST /api/transactions/{id}/payment
+{ "cardToken": "tok_…", "installments": 1, "acceptanceToken": "eyJ…", "acceptPersonalAuth": "eyJ…" }
+→ 200 { "status": "APPROVED", "cardBrand": "VISA", "cardLastFour": "4242", "delivery": { "status": "ASSIGNED", … }, … }
+```
+</details>
 
 ### Validaciones
 
-- Cantidad entre 1 y 10, stock suficiente al crear y al pagar.
-- Email, nombre (3–100), teléfono (7–15 dígitos), dirección, ciudad, región y código postal opcional de 6 dígitos.
-- Token de tarjeta con formato `tok_…`, cuotas entre 1 y 36, tokens de aceptación obligatorios.
-- Se rechazan campos no declarados y se impide pagar dos veces la misma transacción (`409`).
-- La respuesta no expone el teléfono ni el id interno del cliente.
+- Producto existente y **stock suficiente al crear y otra vez antes de cobrar**.
+- Cantidad 1–10, email, nombre (3–100), teléfono (7–15 dígitos), dirección, ciudad, departamento y código postal opcional de 6 dígitos.
+- Token de tarjeta con formato `tok_…`, cuotas 1–36 y tokens de aceptación obligatorios.
+- Se rechazan campos no declarados (`forbidNonWhitelisted`) y no se puede pagar dos veces la misma transacción (`409`).
 
-### Ejecutar en local
+## Flujo de pago
 
-```bash
-docker compose up -d db          # PostgreSQL en el puerto 5440
-cd backend
-cp .env.example .env
-npm install
-npm run start:dev                # carga productos de ejemplo al iniciar
+```
+Navegador                     Backend                         Pasarela (sandbox)
+   │ POST /tokens/cards (llave pública) ─────────────────────────►│  número y CVC van directo
+   │◄──────────────────────────────────────────── token, marca ───│  a la pasarela
+   │ POST /api/transactions ─────►│ valida stock, crea PENDING
+   │ GET  /merchants (tokens de aceptación, de un solo uso) ─────►│
+   │ POST /api/transactions/:id/payment ─►│ firma SHA256 + llave privada ─►│
+   │                              │◄────────────────── PENDING ───│
+   │                              │ consulta hasta estado final ──►│
+   │                              │ BEGIN                          │
+   │                              │  status := APPROVED (solo desde PENDING)
+   │                              │  stock := stock - n (si stock >= n)
+   │                              │  entrega := ASSIGNED
+   │                              │ COMMIT                         │
+   │◄─────────────── transacción final
 ```
 
-Completar en `.env` la URL del sandbox y las llaves de la pasarela (`GATEWAY_*`).
+- **Firma de integridad**: `SHA256(referencia + monto_en_centavos + moneda + secreto)`, calculada solo en el backend.
+- **Finalización atómica e idempotente**: el cambio de estado, el descuento de stock y la asignación de la entrega ocurren en una sola transacción de base de datos y solo desde `PENDING`, aunque lleguen consultas concurrentes.
+- La marca y los últimos 4 dígitos se toman **de la respuesta de la pasarela**, no del cliente.
 
-### Tests
+## Resiliencia
+
+- El progreso del checkout se guarda en `localStorage` (paso, producto, cantidad, datos de entrega, transacción) **sin el token de la tarjeta**.
+- Tras un refresh:
+  - en el resumen → vuelve al formulario con los datos de entrega precargados (el token no se persiste);
+  - en el resultado → consulta `GET /api/transactions/:id`, que sincroniza con la pasarela si sigue `PENDING`;
+  - si la transacción se creó pero no llegó a la pasarela → se reutiliza al reintentar.
+- Las llamadas a la pasarela se **reintentan ante 5xx y errores de red** (el sandbox falla de forma intermitente).
+
+## Seguridad
+
+**[Mozilla Observatory](https://developer.mozilla.org/en-US/observatory/analyze?host=d3uzg2xis4rjhn.cloudfront.net): A+ (115/100), 12/12 pruebas superadas.**
+
+Alineado con OWASP Top 10:
+
+| Riesgo | Medida |
+|---|---|
+| Exposición de datos sensibles | La tarjeta se tokeniza en el navegador con la llave pública; el backend nunca recibe número ni CVC. Solo se guardan marca y últimos 4. La respuesta no expone teléfono ni id interno del cliente. |
+| Secretos | Llaves e integridad en SSM Parameter Store (SecureString). Nada sensible en el repositorio. |
+| Inyección | TypeORM con consultas parametrizadas; validación estricta de DTOs y whitelist de campos. |
+| Abuso / fuerza bruta | Rate limiting: 120 req/min por IP y 10 pagos/min. Cuerpo JSON limitado a 10 KB. |
+| Configuración segura | HTTPS en CloudFront (redirección y HSTS con preload), CSP estricta, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`; Helmet en la API. |
+| Superficie de red | La EC2 solo acepta tráfico del prefix list de CloudFront; PostgreSQL sin puertos expuestos; sin SSH (administración por SSM); IMDSv2 obligatorio; disco cifrado. |
+| Integridad | Firma SHA256 en cada pago; pago idempotente; restricción `CHECK (stock >= 0)` en la base. |
+
+## Pruebas y cobertura
 
 ```bash
-npm run test:cov
+cd backend  && npm run test:cov
+cd frontend && npm run test:cov
 ```
 
-56 tests. El repositorio de transacciones se prueba contra PostgreSQL en memoria (pg-mem) para validar el SQL real de la finalización atómica.
+**Backend** — 56 tests. El repositorio de transacciones se prueba contra PostgreSQL en memoria (pg-mem) para validar el SQL real de la finalización atómica.
 
 | Statements | Branches | Functions | Lines |
 |---|---|---|---|
 | 100% | 100% | 100% | 100% |
 
-## Estado
+**Frontend** — 51 tests: flujo completo de compra, validaciones, estados del resultado, persistencia y clientes HTTP.
 
-En desarrollo.
+| Statements | Branches | Functions | Lines |
+|---|---|---|---|
+| 99.5% | 97.1% | 98.03% | 99.69% |
+
+Además, el flujo se probó de punta a punta contra el sandbox real, en local y en producción:
+
+- Pago aprobado → `APPROVED`, stock descontado, entrega `ASSIGNED`.
+- Pago rechazado → `DECLINED`, entrega `CANCELLED`, stock intacto.
+- Refresh en pleno pago → la app recupera la transacción y muestra el estado final.
+- Viewport de 375×667 (iPhone SE).
+
+## Ejecutar en local
+
+Requisitos: Node 22+, Docker.
+
+```bash
+# Base de datos (PostgreSQL en el puerto 5440)
+docker compose up -d db
+
+# Backend → http://localhost:3000/api  ·  Swagger en /api/docs
+cd backend
+cp .env.example .env      # completar GATEWAY_URL y las llaves del sandbox
+npm install
+npm run start:dev
+
+# Frontend → http://localhost:5173
+cd frontend
+cp .env.example .env      # completar VITE_GATEWAY_URL y VITE_GATEWAY_PUBLIC_KEY
+npm install
+npm run dev
+```
+
+## Despliegue en AWS
+
+```
+                 ┌──────────────────────── CloudFront (HTTPS, HTTP/3, cabeceras de seguridad) ───────────────────────┐
+ Navegador ────► │  /*      → S3 privado (OAC): SPA                                                                   │
+                 │  /api/*  → EC2 t3.micro (solo desde CloudFront) ─► Docker Compose: API NestJS + PostgreSQL         │
+                 └────────────────────────────────────────────────────────────────────────────────────────────────────┘
+                                                        │ secretos al arrancar
+                                                        ▼
+                                              SSM Parameter Store (/checkout/*)
+```
+
+Todo está definido como código en [`infra/`](infra/lib/checkout-stack.ts) (AWS CDK).
+
+```bash
+./deploy/deploy.sh       # sube secretos a SSM, compila el frontend y despliega el stack
+./deploy/deploy.sh api   # solo actualiza la API (git pull + docker en la instancia vía SSM)
+```
+
+- La API se sirve en el **mismo dominio** que el frontend (`/api`), así que no hay CORS en uso normal; aun así CORS se restringe al dominio de CloudFront.
+- Assets con hash en caché por un año (`immutable`); `index.html` con `no-cache` e invalidación en cada despliegue.
+
+## Decisiones y limitaciones conocidas
+
+- **EC2 + Docker en lugar de Lambda + RDS**: la API necesita salir a internet para llamar a la pasarela. Con Lambda en VPC eso exige un NAT Gateway (~USD 32/mes) o una base de datos pública. Una t3.micro con PostgreSQL en contenedor es más barata y deja la base sin exposición.
+- **Stock**: se valida antes de cobrar y se descuenta al aprobar con una actualización condicional. Si dos clientes compran la última unidad a la vez, la entrega del segundo queda `OUT_OF_STOCK` (requeriría reembolso). Para alta concurrencia: reservar stock con expiración.
+- **Reintentos de la pasarela**: si un 5xx llega después de que la pasarela procesó el cobro, la transacción quedaría en `ERROR`. Mejora: conciliar por referencia.
+- **Esquema**: TypeORM `synchronize` en lugar de migraciones, suficiente para un esquema estable; con evolución en producción conviene migraciones.
+- **Webhook de eventos**: no se usa porque la cuenta de sandbox es compartida y no se puede configurar la URL de eventos; el estado se resuelve consultando la pasarela (al pagar y en cada `GET` de una transacción `PENDING`).

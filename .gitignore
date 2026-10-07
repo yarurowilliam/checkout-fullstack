@@ -22,3 +22,4 @@ Thumbs.db
 # Herramientas locales
 .claude/
 cdk.out/
+cdk.context.json
