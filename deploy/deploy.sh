@@ -6,6 +6,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export AWS_DEFAULT_REGION=us-east-1
+# Git Bash en Windows convierte "/checkout/..." en rutas de Windows; aquí son nombres de SSM.
+export MSYS_NO_PATHCONV=1
+export AWS_PAGER=""
 STACK=CheckoutStack
 
 output() {
