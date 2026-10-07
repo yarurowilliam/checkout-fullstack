@@ -29,8 +29,9 @@ src/
   domain/                  Modelos y puertos (interfaces), sin dependencias de frameworks
   application/             Casos de uso: orquestan puertos y devuelven Result
   infrastructure/
-    http/                  Controladores (adaptadores de entrada) y mapeo Result → HTTP
+    http/                  Controladores y DTOs (adaptadores de entrada), mapeo Result → HTTP
     persistence/           Entidades TypeORM, repositorios (adaptadores de salida) y seed
+    gateway/               Adaptador de la pasarela de pagos (firma, reintentos)
 ```
 
 Los controladores solo traducen HTTP ↔ casos de uso. Los casos de uso no lanzan excepciones: devuelven `Ok` o `Err` y el controlador convierte el error en el código HTTP correspondiente.
@@ -63,7 +64,7 @@ deliveries
 ├ id (uuid, PK)
 ├ transaction_id (FK, único)
 ├ address, city, region, postal_code
-├ status (PENDING | ASSIGNED)
+├ status (PENDING | ASSIGNED | CANCELLED | OUT_OF_STOCK)
 └ created_at
 ```
 
@@ -75,8 +76,33 @@ Los montos se manejan en centavos (enteros) para evitar errores de redondeo.
 |---|---|---|
 | GET | `/api/products` | Lista productos con stock |
 | GET | `/api/products/:id` | Detalle de un producto |
+| GET | `/api/checkout/fees` | Tarifa base y tarifa de envío |
+| POST | `/api/transactions` | Crea cliente, transacción PENDING y entrega |
+| POST | `/api/transactions/:id/payment` | Cobra con el token de la tarjeta y aplica el resultado |
+| GET | `/api/transactions/:id` | Estado de la transacción (sincroniza con la pasarela si sigue PENDING) |
 
 Documentación Swagger en `/docs`.
+
+### Flujo de pago
+
+1. El front tokeniza la tarjeta directamente contra la pasarela con la llave pública: **el número y el CVV nunca llegan al backend**.
+2. `POST /api/transactions` valida el stock y crea la transacción `PENDING` con su número de referencia.
+3. `POST /api/transactions/:id/payment` vuelve a validar el stock, firma la petición (SHA256 de referencia + monto + moneda + secreto de integridad) y crea el pago en la pasarela. Luego consulta el estado hasta obtener uno final.
+4. Con el resultado, en una sola transacción de base de datos:
+   - `APPROVED` → descuenta el stock y asigna la entrega.
+   - `DECLINED` / `ERROR` → cancela la entrega.
+   La finalización es idempotente: solo se aplica una vez desde `PENDING`, aunque lleguen consultas concurrentes.
+5. Si el cliente refresca, `GET /api/transactions/:id` recupera el estado y, si sigue `PENDING`, lo sincroniza con la pasarela.
+
+La marca y los últimos 4 dígitos de la tarjeta se toman de la respuesta de la pasarela, no del cliente. Las llamadas a la pasarela se reintentan ante errores 5xx o de red (el sandbox falla de forma intermitente).
+
+### Validaciones
+
+- Cantidad entre 1 y 10, stock suficiente al crear y al pagar.
+- Email, nombre (3–100), teléfono (7–15 dígitos), dirección, ciudad, región y código postal opcional de 6 dígitos.
+- Token de tarjeta con formato `tok_…`, cuotas entre 1 y 36, tokens de aceptación obligatorios.
+- Se rechazan campos no declarados y se impide pagar dos veces la misma transacción (`409`).
+- La respuesta no expone el teléfono ni el id interno del cliente.
 
 ### Ejecutar en local
 
@@ -88,15 +114,19 @@ npm install
 npm run start:dev                # carga productos de ejemplo al iniciar
 ```
 
+Completar en `.env` la URL del sandbox y las llaves de la pasarela (`GATEWAY_*`).
+
 ### Tests
 
 ```bash
 npm run test:cov
 ```
 
+56 tests. El repositorio de transacciones se prueba contra PostgreSQL en memoria (pg-mem) para validar el SQL real de la finalización atómica.
+
 | Statements | Branches | Functions | Lines |
 |---|---|---|---|
-| 97.34% | 100% | 83.33% | 100% |
+| 100% | 100% | 100% | 100% |
 
 ## Estado
 

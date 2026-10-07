@@ -19,3 +19,29 @@ export const err = (code: ErrorCode, message: string): Result<never> => ({
 
 export const fromNullable = <T>(value: T | null | undefined, code: ErrorCode, message: string): Result<T> =>
   value === null || value === undefined ? err(code, message) : ok(value);
+
+export const ensure = <T>(value: T, condition: boolean, code: ErrorCode, message: string): Result<T> =>
+  condition ? ok(value) : err(code, message);
+
+type Awaitable<T> = T | Promise<T>;
+
+// Encadena pasos asíncronos sobre el riel de éxito; un Err salta el resto.
+export class Flow<T> {
+  private constructor(private readonly current: Promise<Result<T>>) {}
+
+  static from<T>(result: Awaitable<Result<T>>): Flow<T> {
+    return new Flow(Promise.resolve(result));
+  }
+
+  andThen<U>(step: (value: T) => Awaitable<Result<U>>): Flow<U> {
+    return new Flow(this.current.then((r) => (r.ok ? step(r.value) : r)));
+  }
+
+  map<U>(step: (value: T) => Awaitable<U>): Flow<U> {
+    return this.andThen(async (value) => ok(await step(value)));
+  }
+
+  run(): Promise<Result<T>> {
+    return this.current;
+  }
+}

@@ -7,6 +7,7 @@ import {
   ManyToOne,
   OneToOne,
   PrimaryGeneratedColumn,
+  Relation,
   UpdateDateColumn,
 } from 'typeorm';
 
@@ -34,8 +35,10 @@ export class CustomerEntity {
 export class TransactionEntity {
   @PrimaryGeneratedColumn('uuid') id: string;
   @Column({ unique: true }) reference: string;
+  @Column('uuid', { name: 'product_id' }) productId: string;
   @ManyToOne(() => ProductEntity, { nullable: false }) @JoinColumn({ name: 'product_id' }) product: ProductEntity;
   @ManyToOne(() => CustomerEntity, { nullable: false }) @JoinColumn({ name: 'customer_id' }) customer: CustomerEntity;
+  @OneToOne(() => DeliveryEntity, (d) => d.transaction) delivery: Relation<DeliveryEntity>;
   @Column('int') quantity: number;
   @Column('int', { name: 'amount_in_cents' }) amountInCents: number;
   @Column('int', { name: 'base_fee_in_cents' }) baseFeeInCents: number;
@@ -52,7 +55,9 @@ export class TransactionEntity {
 @Entity('deliveries')
 export class DeliveryEntity {
   @PrimaryGeneratedColumn('uuid') id: string;
-  @OneToOne(() => TransactionEntity, { nullable: false }) @JoinColumn({ name: 'transaction_id' }) transaction: TransactionEntity;
+  @OneToOne(() => TransactionEntity, (t) => t.delivery, { nullable: false })
+  @JoinColumn({ name: 'transaction_id' })
+  transaction: TransactionEntity;
   @Column() address: string;
   @Column() city: string;
   @Column() region: string;
