@@ -1,5 +1,6 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { TransactionsUseCases } from '../../application/transactions.use-cases';
 import { Fees, Transaction } from '../../domain/transaction';
 import { Result } from '../../shared/result';
@@ -36,6 +37,7 @@ export class TransactionsController {
 
   @Post('transactions/:id/payment')
   @HttpCode(200)
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   pay(@Param('id', ParseUUIDPipe) id: string, @Body() dto: PayTransactionDto) {
     return respond(this.useCases.pay(id, dto));
   }
