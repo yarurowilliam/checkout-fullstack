@@ -1,0 +1,20 @@
+# Documentos locales de la prueba
+*.pdf
+
+# Dependencias y builds
+node_modules/
+dist/
+build/
+coverage/
+
+# Variables de entorno (llaves de la pasarela)
+.env
+.env.*
+!.env.example
+
+# Editor / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
