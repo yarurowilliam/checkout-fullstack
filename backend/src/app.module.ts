@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ProductsUseCases } from './application/products.use-cases';
 import { CHECKOUT_SETTINGS, CheckoutSettings, TransactionsUseCases } from './application/transactions.use-cases';
@@ -29,9 +31,12 @@ import { TypeOrmTransactionRepository } from './infrastructure/persistence/typeo
       }),
     }),
     TypeOrmModule.forFeature([ProductEntity]),
+    // Límite global por IP; el pago tiene uno más estricto en el controlador.
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
   ],
   controllers: [ProductsController, TransactionsController],
   providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     ProductsUseCases,
     TransactionsUseCases,
     ProductSeeder,
