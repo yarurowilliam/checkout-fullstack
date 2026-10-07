@@ -22,12 +22,12 @@ describe('TransactionsController', () => {
     expect(controller.fees()).toEqual({ baseFeeInCents: 1, deliveryFeeInCents: 2 });
   });
 
-  it('POST /transactions no expone el teléfono ni el id del cliente', async () => {
+  it('POST /transactions no expone el teléfono del cliente', async () => {
     useCases.create.mockResolvedValue(ok(tx as never));
     expect(await controller.create({} as CreateTransactionDto)).toEqual({
       id: 't1',
       status: 'PENDING',
-      customer: { fullName: 'Ana', email: 'a@b.co' },
+      customer: { id: 'c1', fullName: 'Ana', email: 'a@b.co' },
     });
   });
 

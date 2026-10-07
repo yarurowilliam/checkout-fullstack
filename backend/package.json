@@ -9,7 +9,8 @@
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main",
     "test": "jest",
-    "test:cov": "jest --coverage"
+    "test:cov": "jest --coverage",
+    "test:e2e": "jest src/e2e"
   },
   "jest": {
     "moduleFileExtensions": [
@@ -25,7 +26,9 @@
     "collectCoverageFrom": [
       "**/*.ts",
       "!main.ts",
-      "!**/*.module.ts"
+      "!**/*.module.ts",
+      "!test-utils/**",
+      "!e2e/**"
     ],
     "coverageDirectory": "../coverage",
     "coverageThreshold": {
