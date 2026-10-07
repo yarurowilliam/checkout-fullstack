@@ -7,10 +7,10 @@ import { Result } from '../../shared/result';
 import { unwrap } from './http-result';
 import { CreateTransactionDto, PayTransactionDto } from './transactions.dto';
 
-// No se exponen el id interno ni el teléfono del cliente.
+// No se expone el teléfono del cliente.
 const toView = ({ customer, ...tx }: Transaction) => ({
   ...tx,
-  customer: { fullName: customer.fullName, email: customer.email },
+  customer: { id: customer.id, fullName: customer.fullName, email: customer.email },
 });
 
 const respond = async (result: Promise<Result<Transaction>>) => toView(unwrap(await result));
