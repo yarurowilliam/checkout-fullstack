@@ -1,0 +1,8 @@
+{
+  "app": "npx tsx bin/app.ts",
+  "context": {
+    "repoUrl": "https://github.com/yarurowilliam/checkout-fullstack.git",
+    "repoBranch": "main",
+    "cloudFrontPrefixList": "pl-3b927c52"
+  }
+}

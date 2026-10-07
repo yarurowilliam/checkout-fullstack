@@ -21,3 +21,4 @@ Thumbs.db
 
 # Herramientas locales
 .claude/
+cdk.out/
