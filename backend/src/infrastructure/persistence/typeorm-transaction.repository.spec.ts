@@ -1,22 +1,9 @@
 import { randomUUID } from 'crypto';
-import { DataType, newDb } from 'pg-mem';
 import { DataSource } from 'typeorm';
 import { NewTransaction } from '../../domain/ports/transaction.repository';
-import { ENTITIES, ProductEntity } from './entities';
+import { createMemoryDataSource as createDataSource } from '../../test-utils/pg-mem';
+import { ProductEntity } from './entities';
 import { TypeOrmTransactionRepository } from './typeorm-transaction.repository';
-
-const createDataSource = async (): Promise<DataSource> => {
-  const db = newDb({ autoCreateForeignKeyIndices: true });
-  db.public.registerFunction({ name: 'current_database', implementation: () => 'test' });
-  db.public.registerFunction({ name: 'version', implementation: () => 'PostgreSQL 16' });
-  db.registerExtension('uuid-ossp', (schema) =>
-    schema.registerFunction({ name: 'uuid_generate_v4', returns: DataType.uuid, implementation: randomUUID, impure: true }),
-  );
-  const ds: DataSource = db.adapters.createTypeormDataSource({ type: 'postgres', entities: ENTITIES });
-  await ds.initialize();
-  await ds.synchronize();
-  return ds;
-};
 
 describe('TypeOrmTransactionRepository (pg-mem)', () => {
   let ds: DataSource;
