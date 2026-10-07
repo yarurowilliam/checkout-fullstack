@@ -225,11 +225,11 @@ cd frontend && npm run test:cov
 |---|---|---|---|
 | 100% | 100% | 100% | 100% |
 
-**Frontend** — 51 tests: flujo completo de compra, validaciones, estados del resultado, persistencia y clientes HTTP.
+**Frontend** — 53 tests: flujo completo de compra, validaciones, estados del resultado, persistencia y clientes HTTP.
 
 | Statements | Branches | Functions | Lines |
 |---|---|---|---|
-| 99.5% | 97.1% | 98.03% | 99.69% |
+| 99.51% | 97.2% | 98.07% | 99.7% |
 
 Además, el flujo se probó de punta a punta contra el sandbox real, en local y en producción:
 
