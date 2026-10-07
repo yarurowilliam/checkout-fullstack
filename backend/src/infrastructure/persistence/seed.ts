@@ -9,21 +9,21 @@ export const SEED_PRODUCTS: Omit<ProductEntity, 'id'>[] = [
     description: 'Audífonos Bluetooth con cancelación de ruido y 30 horas de batería.',
     priceInCents: 18990000,
     stock: 15,
-    imageUrl: 'https://picsum.photos/seed/headphones/600/600',
+    imageUrl: '/products/headphones.svg',
   },
   {
     name: 'Reloj inteligente',
     description: 'Monitor de ritmo cardiaco, GPS y resistencia al agua 5 ATM.',
     priceInCents: 32900000,
     stock: 8,
-    imageUrl: 'https://picsum.photos/seed/watch/600/600',
+    imageUrl: '/products/smartwatch.svg',
   },
   {
     name: 'Morral urbano',
     description: 'Morral impermeable con compartimento para portátil de 15".',
     priceInCents: 12500000,
     stock: 20,
-    imageUrl: 'https://picsum.photos/seed/backpack/600/600',
+    imageUrl: '/products/backpack.svg',
   },
 ];
 
