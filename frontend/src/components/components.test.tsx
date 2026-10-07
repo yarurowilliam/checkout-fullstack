@@ -6,7 +6,7 @@ import { startCheckout, submitPaymentForm, transactionStarted } from '../store/c
 import { CardBrandLogo } from './CardBrandLogo';
 import { PaymentModal } from './PaymentModal';
 import { ProductPage } from './ProductPage';
-import { POLL_MS, REDIRECT_SECONDS, ResultPage } from './ResultPage';
+import { MAX_ORPHAN_CHECKS, POLL_MS, REDIRECT_SECONDS, ResultPage } from './ResultPage';
 import { SummaryBackdrop } from './SummaryBackdrop';
 
 const mockAcceptance = jest.fn();
@@ -240,11 +240,44 @@ describe('ResultPage', () => {
     expect(extra.backend.transaction).toHaveBeenCalledWith('t1');
   });
 
-  it('ofrece reintentar si la transacción no llegó a la pasarela', async () => {
-    const { store } = showResult();
-    expect(await screen.findByText('El pago no se completó')).toBeInTheDocument();
+  it('tras un refresh en pleno pago espera al servidor y luego muestra el resultado', async () => {
+    jest.useFakeTimers();
+    const { extra } = showResult();
+    extra.backend.transaction
+      .mockResolvedValueOnce(transaction())
+      .mockResolvedValueOnce(transaction({ status: 'DECLINED', gatewayTransactionId: 'g1' }));
+    expect(screen.getByText('Procesando tu pago…')).toBeInTheDocument();
+    await act(async () => {
+      jest.advanceTimersByTime(0);
+    });
+    expect(screen.getByText('Procesando tu pago…')).toBeInTheDocument();
+    await act(async () => {
+      jest.advanceTimersByTime(POLL_MS);
+    });
+    expect(screen.getByText('Pago rechazado')).toBeInTheDocument();
+  });
+
+  it('ofrece reintentar si la transacción nunca llegó a la pasarela', async () => {
+    jest.useFakeTimers();
+    const { store, extra } = showResult();
+    for (let i = 0; i < MAX_ORPHAN_CHECKS; i++) {
+      await act(async () => {
+        jest.advanceTimersByTime(POLL_MS);
+      });
+    }
+    expect(extra.backend.transaction).toHaveBeenCalledTimes(MAX_ORPHAN_CHECKS);
+    expect(screen.getByText('El pago no se completó')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Intentar de nuevo' }));
     expect(store.getState().checkout.step).toBe('payment');
+  });
+
+  it('si el pago falló en esta sesión muestra el error sin esperar', () => {
+    const { store, extra } = showResult();
+    act(() => {
+      store.dispatch({ type: 'checkout/pay/rejected', error: { message: 'No hay unidades suficientes' } });
+    });
+    expect(screen.getByText('No hay unidades suficientes')).toBeInTheDocument();
+    expect(extra.backend.transaction).not.toHaveBeenCalled();
   });
 
   it('redirige a la tienda tras un estado final', async () => {
