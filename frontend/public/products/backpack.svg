@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-label="Morral urbano">
+  <rect width="600" height="600" fill="#dfff61"/>
+  <circle cx="490" cy="130" r="70" fill="#99d1fc"/>
+  <circle cx="100" cy="470" r="60" fill="#b0f2ae"/>
+  <path d="M250 150 v-30 a50 50 0 0 1 100 0 v30" fill="none" stroke="#2c2a29" stroke-width="24" stroke-linecap="round"/>
+  <rect x="165" y="140" width="270" height="360" rx="80" fill="#2c2a29"/>
+  <rect x="205" y="330" width="190" height="130" rx="34" fill="#1f8a63"/>
+  <rect x="235" y="320" width="130" height="18" rx="9" fill="#b0f2ae"/>
+  <circle cx="300" cy="230" r="22" fill="#dfff61"/>
+  <ellipse cx="300" cy="525" rx="150" ry="16" fill="#2c2a29" opacity="0.15"/>
+</svg>

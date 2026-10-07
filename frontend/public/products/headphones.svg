@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-label="Audífonos inalámbricos">
+  <rect width="600" height="600" fill="#b0f2ae"/>
+  <circle cx="470" cy="120" r="70" fill="#dfff61"/>
+  <circle cx="110" cy="500" r="50" fill="#99d1fc"/>
+  <path d="M160 330 V280 a140 140 0 0 1 280 0 V330" fill="none" stroke="#2c2a29" stroke-width="34" stroke-linecap="round"/>
+  <rect x="118" y="300" width="96" height="150" rx="40" fill="#2c2a29"/>
+  <rect x="386" y="300" width="96" height="150" rx="40" fill="#2c2a29"/>
+  <rect x="148" y="330" width="40" height="90" rx="20" fill="#dfff61"/>
+  <rect x="412" y="330" width="40" height="90" rx="20" fill="#dfff61"/>
+  <ellipse cx="300" cy="520" rx="170" ry="18" fill="#2c2a29" opacity="0.12"/>
+</svg>
