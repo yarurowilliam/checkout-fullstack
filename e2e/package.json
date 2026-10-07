@@ -1,0 +1,13 @@
+{
+  "name": "checkout-e2e",
+  "version": "1.0.0",
+  "description": "Pruebas de punta a punta en varios navegadores (Playwright)",
+  "scripts": {
+    "test": "playwright test",
+    "report": "playwright show-report"
+  },
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
+  }
+}

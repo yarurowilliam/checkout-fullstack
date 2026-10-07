@@ -24,3 +24,7 @@ Thumbs.db
 cdk.out/
 cdk.context.json
 *.mp4
+
+# Resultados de Playwright
+playwright-report/
+test-results/
