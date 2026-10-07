@@ -241,6 +241,23 @@ cd frontend && npm run test:cov
 |---|---|---|---|
 | 99.51% | 97.2% | 98.07% | 99.7% |
 
+**Navegadores (e2e con Playwright)** — 7 pruebas × 6 configuraciones = **42 pruebas en verde**. Recorren la interfaz real contra el backend y el sandbox de la pasarela:
+
+| Prueba | Chrome | Edge | Firefox | Safari (WebKit) | Chrome móvil (Pixel 7) | Safari iPhone SE |
+|---|---|---|---|---|---|---|
+| Productos con precio y stock, sin desbordes | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Validación de tarjeta y datos de entrega | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Detección de VISA y MasterCard | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Cierre del modal con Escape | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Compra aprobada: descuenta el stock | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Compra rechazada: el stock no cambia | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Recupera el progreso al recargar | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+```bash
+cd e2e && npm install && npx playwright install firefox webkit
+API_URL=http://localhost:3000/api npx playwright test   # con backend y frontend corriendo en local
+```
+
 Además, el flujo se probó de punta a punta contra el sandbox real, en local y en producción:
 
 - Pago aprobado → `APPROVED`, stock descontado, entrega `ASSIGNED`.
