@@ -22,7 +22,7 @@ function ProductCard({ product, priority }: { product: Product; priority: boolea
         alt={product.name}
         width={600}
         height={600}
-        loading={priority ? 'eager' : 'lazy'}
+        loading="eager"
         decoding="async"
         fetchPriority={priority ? 'high' : 'auto'}
       />
