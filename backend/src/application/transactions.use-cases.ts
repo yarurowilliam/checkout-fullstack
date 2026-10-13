@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto';
 import { GatewayPayment, PAYMENT_GATEWAY, PaymentGateway } from '../domain/ports/payment-gateway';
 import { PRODUCT_REPOSITORY, ProductRepository } from '../domain/ports/product.repository';
 import { TRANSACTION_REPOSITORY, TransactionRepository } from '../domain/ports/transaction.repository';
-import { calculateAmounts, Customer, DeliveryInput, Fees, FINAL_STATUSES, Transaction } from '../domain/transaction';
+import { calculateAmounts, Customer, DeliveryInput, Fees, FINAL_STATUSES, IVA_RATE, Transaction } from '../domain/transaction';
 import { ensure, Flow, fromNullable, ok, Result } from '../shared/result';
 
 export const CHECKOUT_SETTINGS = Symbol('CHECKOUT_SETTINGS');
@@ -42,8 +42,8 @@ export class TransactionsUseCases {
     @Inject(CHECKOUT_SETTINGS) private readonly settings: CheckoutSettings,
   ) {}
 
-  fees(): Fees {
-    return this.settings.fees;
+  fees(): Fees & { taxRate: number } {
+    return { ...this.settings.fees, taxRate: IVA_RATE };
   }
 
   create(input: CreateTransactionInput): Promise<Result<Transaction>> {

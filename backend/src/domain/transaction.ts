@@ -29,6 +29,7 @@ export interface Transaction {
   delivery: Delivery;
   quantity: number;
   amountInCents: number;
+  taxInCents: number;
   baseFeeInCents: number;
   deliveryFeeInCents: number;
   totalInCents: number;
@@ -44,11 +45,18 @@ export interface Fees {
   deliveryFeeInCents: number;
 }
 
+/** IVA vigente: 19% sobre el valor de los productos. */
+export const IVA_RATE = 0.19;
+
+export const calculateTax = (amountInCents: number) => Math.round(amountInCents * IVA_RATE);
+
 export const calculateAmounts = (priceInCents: number, quantity: number, fees: Fees) => {
   const amountInCents = priceInCents * quantity;
+  const taxInCents = calculateTax(amountInCents);
   return {
     amountInCents,
+    taxInCents,
     ...fees,
-    totalInCents: amountInCents + fees.baseFeeInCents + fees.deliveryFeeInCents,
+    totalInCents: amountInCents + taxInCents + fees.baseFeeInCents + fees.deliveryFeeInCents,
   };
 };

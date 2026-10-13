@@ -41,6 +41,8 @@ export class TransactionEntity {
   @OneToOne(() => DeliveryEntity, (d) => d.transaction) delivery: Relation<DeliveryEntity>;
   @Column('int') quantity: number;
   @Column('int', { name: 'amount_in_cents' }) amountInCents: number;
+  // default 0: permite agregar la columna sobre transacciones previas sin IVA.
+  @Column('int', { name: 'tax_in_cents', default: 0 }) taxInCents: number;
   @Column('int', { name: 'base_fee_in_cents' }) baseFeeInCents: number;
   @Column('int', { name: 'delivery_fee_in_cents' }) deliveryFeeInCents: number;
   @Column('int', { name: 'total_in_cents' }) totalInCents: number;
