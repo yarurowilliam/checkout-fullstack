@@ -1,5 +1,5 @@
 import { detectBrand, formatCardNumber, formatExpiry, isValidCvc, isValidExpiry, isValidLuhn } from './card';
-import { formatCents } from './money';
+import { formatCents, formatPercent, summarize } from './money';
 import { validatePaymentForm, type FormValues } from './validation';
 
 describe('tarjeta', () => {
@@ -44,6 +44,22 @@ describe('tarjeta', () => {
 describe('dinero', () => {
   it('formatea centavos en pesos colombianos sin decimales', () => {
     expect(formatCents(19990000).replace(/\s/g, ' ')).toBe('$ 199.900');
+  });
+});
+
+describe('resumen con IVA', () => {
+  const fees = { baseFeeInCents: 200000, deliveryFeeInCents: 800000, taxRate: 0.19 };
+
+  it('calcula el IVA solo sobre el valor de los productos', () => {
+    expect(summarize(37980000, fees)).toEqual({ amountInCents: 37980000, taxInCents: 7216200, totalInCents: 46196200 });
+  });
+
+  it('redondea al centavo como el backend', () => {
+    expect(summarize(1005, { ...fees, baseFeeInCents: 0, deliveryFeeInCents: 0 }).taxInCents).toBe(191);
+  });
+
+  it('formatea la tarifa como porcentaje', () => {
+    expect(formatPercent(0.19)).toBe('19%');
   });
 });
 
