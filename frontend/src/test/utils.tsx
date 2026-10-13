@@ -20,9 +20,10 @@ export const transaction = (overrides: Partial<Transaction> = {}): Transaction =
   productId: 'p1',
   quantity: 1,
   amountInCents: 18990000,
+  taxInCents: 3608100,
   baseFeeInCents: 200000,
   deliveryFeeInCents: 800000,
-  totalInCents: 19990000,
+  totalInCents: 23598100,
   status: 'PENDING',
   gatewayTransactionId: null,
   cardBrand: null,
@@ -42,7 +43,7 @@ export const fakeExtra = () =>
   ({
     backend: {
       products: jest.fn().mockResolvedValue([product]),
-      fees: jest.fn().mockResolvedValue({ baseFeeInCents: 200000, deliveryFeeInCents: 800000 }),
+      fees: jest.fn().mockResolvedValue({ baseFeeInCents: 200000, deliveryFeeInCents: 800000, taxRate: 0.19 }),
       createTransaction: jest.fn().mockResolvedValue(transaction()),
       pay: jest.fn().mockResolvedValue(
         transaction({ status: 'APPROVED', gatewayTransactionId: 'g1', cardBrand: 'VISA', cardLastFour: '4242' }),

@@ -9,6 +9,7 @@ export interface NewTransaction {
   delivery: DeliveryInput;
   quantity: number;
   amountInCents: number;
+  taxInCents: number;
   baseFeeInCents: number;
   deliveryFeeInCents: number;
   totalInCents: number;

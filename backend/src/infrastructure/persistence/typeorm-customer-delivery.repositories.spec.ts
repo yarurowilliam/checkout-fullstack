@@ -23,9 +23,10 @@ describe('Repositorios de clientes y entregas (pg-mem)', () => {
       delivery: { address: 'Calle 1', city: 'Bogotá', region: 'Cund', postalCode: '110111' },
       quantity: 1,
       amountInCents: 100,
+      taxInCents: 19,
       baseFeeInCents: 10,
       deliveryFeeInCents: 20,
-      totalInCents: 130,
+      totalInCents: 149,
     });
   };
 

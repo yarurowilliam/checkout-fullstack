@@ -10,6 +10,8 @@ export interface Product {
 export interface Fees {
   baseFeeInCents: number;
   deliveryFeeInCents: number;
+  /** IVA como fracción (0.19 = 19%), definido por el backend. */
+  taxRate: number;
 }
 
 export interface CustomerData {
@@ -33,6 +35,7 @@ export interface Transaction {
   productId: string;
   quantity: number;
   amountInCents: number;
+  taxInCents: number;
   baseFeeInCents: number;
   deliveryFeeInCents: number;
   totalInCents: number;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { gateway, type Acceptance } from '../api/gateway';
-import { formatCents } from '../domain/money';
+import { formatCents, formatPercent, summarize } from '../domain/money';
 import { useAppDispatch, useAppSelector } from '../store';
 import { goTo, payTransaction } from '../store/checkoutSlice';
 import { CardBrandLogo } from './CardBrandLogo';
@@ -23,8 +23,7 @@ export function SummaryBackdrop() {
   const { fees, quantity, card, delivery, busy, error } = checkout;
   if (!product || !fees || !card) return null;
 
-  const amount = product.priceInCents * quantity;
-  const total = amount + fees.baseFeeInCents + fees.deliveryFeeInCents;
+  const { amountInCents: amount, taxInCents: tax, totalInCents: total } = summarize(product.priceInCents * quantity, fees);
 
   return (
     <div className="backdrop" role="dialog" aria-modal="true" aria-label="Resumen de pago">
@@ -49,6 +48,10 @@ export function SummaryBackdrop() {
           <div>
             <dt>Producto</dt>
             <dd>{formatCents(amount)}</dd>
+          </div>
+          <div>
+            <dt>IVA ({formatPercent(fees.taxRate)})</dt>
+            <dd>{formatCents(tax)}</dd>
           </div>
           <div>
             <dt>Tarifa base</dt>

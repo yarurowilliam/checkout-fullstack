@@ -100,7 +100,7 @@ describe('API (e2e)', () => {
     });
 
     it('GET /api/checkout/fees devuelve la tarifa base y la de envío', async () => {
-      await request(http).get('/api/checkout/fees').expect(200, { baseFeeInCents: 200000, deliveryFeeInCents: 800000 });
+      await request(http).get('/api/checkout/fees').expect(200, { baseFeeInCents: 200000, deliveryFeeInCents: 800000, taxRate: 0.19 });
     });
   });
 
@@ -114,7 +114,8 @@ describe('API (e2e)', () => {
         status: 'PENDING',
         quantity: 2,
         amountInCents: product.priceInCents * 2,
-        totalInCents: product.priceInCents * 2 + 1000000,
+        taxInCents: Math.round(product.priceInCents * 2 * 0.19),
+        totalInCents: product.priceInCents * 2 + Math.round(product.priceInCents * 2 * 0.19) + 1000000,
         delivery: { status: 'PENDING' },
       });
       expect(created.body.customer).not.toHaveProperty('phone');

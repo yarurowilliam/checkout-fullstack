@@ -21,7 +21,7 @@ export class TransactionsController {
   constructor(private readonly useCases: TransactionsUseCases) {}
 
   @Get('checkout/fees')
-  fees(): Fees {
+  fees(): Fees & { taxRate: number } {
     return this.useCases.fees();
   }
 

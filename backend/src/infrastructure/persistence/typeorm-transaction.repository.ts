@@ -81,6 +81,7 @@ const toDomain = (e: TransactionEntity): Transaction => ({
   },
   quantity: e.quantity,
   amountInCents: e.amountInCents,
+  taxInCents: e.taxInCents,
   baseFeeInCents: e.baseFeeInCents,
   deliveryFeeInCents: e.deliveryFeeInCents,
   totalInCents: e.totalInCents,

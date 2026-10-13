@@ -62,7 +62,7 @@ describe('checkout', () => {
   it('carga las tarifas', async () => {
     const { store, state } = setup();
     await store.dispatch(loadFees());
-    expect(state().fees).toEqual({ baseFeeInCents: 200000, deliveryFeeInCents: 800000 });
+    expect(state().fees).toEqual({ baseFeeInCents: 200000, deliveryFeeInCents: 800000, taxRate: 0.19 });
   });
 
   it('tokeniza la tarjeta y guarda solo marca y últimos 4 dígitos', async () => {
