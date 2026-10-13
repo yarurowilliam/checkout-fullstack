@@ -57,7 +57,8 @@ describe('flujo completo', () => {
 
     const summary = await screen.findByRole('dialog', { name: 'Resumen de pago' });
     expect(within(summary).getByText('Producto').nextSibling).toHaveTextContent('379.800');
-    expect(within(summary).getByText('Total').nextSibling).toHaveTextContent('389.800');
+    expect(within(summary).getByText('IVA (19%)').nextSibling).toHaveTextContent('72.162');
+    expect(within(summary).getByText('Total').nextSibling).toHaveTextContent('461.962');
     expect(within(summary).getByText(/•••• 4242 · 3 cuotas/)).toBeInTheDocument();
     expect(await within(summary).findByRole('link', { name: 'reglamento de uso' })).toHaveAttribute('href', 'https://terms');
 
@@ -169,7 +170,7 @@ describe('SummaryBackdrop', () => {
     const ctx = renderWithStore(<SummaryBackdrop />);
     await act(async () => {
       await ctx.store.dispatch({ type: 'products/fetch/fulfilled', payload: [product] });
-      await ctx.store.dispatch({ type: 'checkout/fees/fulfilled', payload: { baseFeeInCents: 200000, deliveryFeeInCents: 800000 } });
+      await ctx.store.dispatch({ type: 'checkout/fees/fulfilled', payload: { baseFeeInCents: 200000, deliveryFeeInCents: 800000, taxRate: 0.19 } });
       ctx.store.dispatch(startCheckout({ productId: 'p1', quantity: 1 }));
       await ctx.store.dispatch(
         submitPaymentForm({

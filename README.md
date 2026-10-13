@@ -31,7 +31,7 @@ SPA mobile-first para comprar un producto y pagarlo con tarjeta de crédito a tr
 
 1. **Producto**: catálogo con descripción, precio y unidades disponibles. Se elige la cantidad y se pulsa *Pagar con tarjeta de crédito*.
 2. **Tarjeta y entrega** (modal): número con detección de VISA/MasterCard, titular, vencimiento, CVC, cuotas y datos de entrega. Todo se valida en el cliente y en el servidor.
-3. **Resumen** (patrón [backdrop de Material](https://m2.material.io/components/backdrop)): valor del producto, tarifa base, tarifa de envío y total, más la aceptación de términos de la pasarela.
+3. **Resumen** (patrón [backdrop de Material](https://m2.material.io/components/backdrop)): valor del producto, **IVA (19%)**, tarifa base, tarifa de envío y total, más la aceptación de términos de la pasarela.
 4. **Estado final**: aprobado, rechazado o error, con referencia, tarjeta enmascarada y dirección de entrega.
 5. **Regreso a la tienda** (automático a los 10 s o con el botón) con el stock actualizado.
 
@@ -107,7 +107,7 @@ transactions ──────────────────────�
 ├ reference (único, se envía a la pasarela)
 ├ product_id (FK), customer_id (FK)
 ├ quantity
-├ amount_in_cents, base_fee_in_cents, delivery_fee_in_cents, total_in_cents
+├ amount_in_cents, tax_in_cents, base_fee_in_cents, delivery_fee_in_cents, total_in_cents
 ├ status (PENDING | APPROVED | DECLINED | ERROR | VOIDED)
 ├ gateway_transaction_id
 ├ card_brand, card_last_four   (nunca se guarda el número ni el CVV)
@@ -123,6 +123,7 @@ deliveries
 ```
 
 - Montos en **centavos enteros** para evitar errores de redondeo.
+- **IVA del 19%** sobre el valor de los productos (no sobre las tarifas), redondeado al centavo. `total = productos + IVA + tarifa base + envío`. El backend lo calcula (`calculateAmounts`), lo guarda en `tax_in_cents` y es el monto que se cobra; el resumen del frontend usa la misma regla con la tasa que publica `/api/checkout/fees`.
 - La base se carga con productos de ejemplo al iniciar si la tabla está vacía (no hay endpoint para crear productos).
 
 ## API
@@ -133,7 +134,7 @@ Documentación interactiva en **`/api/docs`** (Swagger).
 |---|---|---|
 | GET | `/api/products` | Lista productos con stock |
 | GET | `/api/products/:id` | Detalle de un producto |
-| GET | `/api/checkout/fees` | Tarifa base y tarifa de envío |
+| GET | `/api/checkout/fees` | Tarifa base, tarifa de envío y tasa de IVA (`taxRate: 0.19`) |
 | POST | `/api/transactions` | Crea (o actualiza) el cliente, la transacción `PENDING` y la entrega |
 | POST | `/api/transactions/:id/payment` | Cobra con el token de la tarjeta y aplica el resultado |
 | GET | `/api/transactions/:id` | Estado de la transacción; si sigue `PENDING` lo sincroniza con la pasarela |
