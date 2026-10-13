@@ -16,9 +16,10 @@ const tx = (overrides: Partial<Transaction> = {}): Transaction => ({
   delivery: { id: 'd1', address: 'Calle 1', city: 'Bogotá', region: 'Cund', postalCode: null, status: 'PENDING' },
   quantity: 2,
   amountInCents: 200000,
+  taxInCents: 38000,
   baseFeeInCents: 2000,
   deliveryFeeInCents: 8000,
-  totalInCents: 210000,
+  totalInCents: 248000,
   status: 'PENDING',
   gatewayTransactionId: null,
   cardBrand: null,
@@ -57,7 +58,7 @@ describe('TransactionsUseCases', () => {
   });
 
   it('expone las tarifas configuradas', () => {
-    expect(useCases.fees()).toEqual({ baseFeeInCents: 2000, deliveryFeeInCents: 8000 });
+    expect(useCases.fees()).toEqual({ baseFeeInCents: 2000, deliveryFeeInCents: 8000, taxRate: 0.19 });
   });
 
   describe('create', () => {
@@ -65,7 +66,13 @@ describe('TransactionsUseCases', () => {
       const result = await useCases.create(input);
       expect(result.ok).toBe(true);
       const data = transactions.create.mock.calls[0][0];
-      expect(data).toMatchObject({ amountInCents: 200000, baseFeeInCents: 2000, deliveryFeeInCents: 8000, totalInCents: 210000 });
+      expect(data).toMatchObject({
+        amountInCents: 200000,
+        taxInCents: 38000,
+        baseFeeInCents: 2000,
+        deliveryFeeInCents: 8000,
+        totalInCents: 248000,
+      });
       expect(data.reference).toMatch(/^TX-\d+-[0-9a-f]{8}$/);
     });
 
@@ -87,7 +94,7 @@ describe('TransactionsUseCases', () => {
       const result = await useCases.pay('t1', payInput);
       expect(gateway.createPayment).toHaveBeenCalledWith({
         reference: 'TX-1',
-        amountInCents: 210000,
+        amountInCents: 248000,
         customerEmail: 'a@b.co',
         ...payInput,
       });

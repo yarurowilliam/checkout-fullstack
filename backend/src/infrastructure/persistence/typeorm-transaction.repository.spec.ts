@@ -17,9 +17,10 @@ describe('TypeOrmTransactionRepository (pg-mem)', () => {
     delivery: { address: 'Calle 1', city: 'Bogotá', region: 'Cund' },
     quantity: 2,
     amountInCents: 200000,
+    taxInCents: 38000,
     baseFeeInCents: 2000,
     deliveryFeeInCents: 8000,
-    totalInCents: 210000,
+    totalInCents: 248000,
     ...overrides,
   });
 
@@ -44,7 +45,8 @@ describe('TypeOrmTransactionRepository (pg-mem)', () => {
     expect(tx).toMatchObject({
       status: 'PENDING',
       productId: product.id,
-      totalInCents: 210000,
+      taxInCents: 38000,
+      totalInCents: 248000,
       customer: { email: 'ana@test.co', fullName: 'Ana' },
       delivery: { status: 'PENDING', postalCode: '110111' },
     });
